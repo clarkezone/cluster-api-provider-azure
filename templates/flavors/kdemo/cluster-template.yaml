@@ -1,0 +1,128 @@
+---
+# The Cluster object is the top level owner of all resources.
+# It coordinates between the control plane and the infrastructure/machines.
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: default
+spec:
+  clusterNetwork:
+    services:
+      cidrBlocks:
+      - 192.168.0.0/16
+  controlPlaneRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: AzureManagedControlPlane
+    name: ${CLUSTER_NAME}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: AzureManagedCluster
+    name: ${CLUSTER_NAME}
+---
+# The control plane abstracts readiness and provisioning of an AKS cluster.
+# Because AKS requires a default pool, this also requires a reference to the
+# default machine pool.
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureManagedControlPlane
+metadata:
+  name: ${CLUSTER_NAME}
+spec:
+  subscriptionID: ${AZURE_SUBSCRIPTION_ID}
+  resourceGroupName: "${AZURE_RESOURCE_GROUP:=${CLUSTER_NAME}}"
+  location: "${AZURE_LOCATION}"
+  sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
+  version: "${KUBERNETES_VERSION}"
+---
+# Due to the nature of managed Kubernetes and the control plane implementation,
+# the infrastructure provider for AKS cluster is basically a no-op.
+# It sets itself to ready as soon as it sees the control plane ready.
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureManagedCluster
+metadata:
+  name: ${CLUSTER_NAME}
+---
+# We provision a default machine pool with no bootstrap data (AKS will provide it).
+# We specify an AzureManagedMachinePool as the infrastructure machine it, which
+# will be reflected in Azure as VMSS node pools attached to an AKS cluster.
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: "pool0"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: ${WORKER_MACHINE_COUNT}
+  template:
+    metadata: {}
+    spec:
+      bootstrap:
+        dataSecretName: ""
+      clusterName: "${CLUSTER_NAME}"
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: AzureManagedMachinePool
+        name: "pool0"
+      version: "${KUBERNETES_VERSION}"
+---
+# The Azure-specific machine pool implementation drives the configuration of the
+# VMSS instances backing the pool.
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureManagedMachinePool
+metadata:
+  name: "pool0"
+spec:
+  mode: System
+  osDiskSizeGB: 30
+  sku: "${AZURE_NODE_MACHINE_TYPE}"
+  enableNodePublicIP: false
+---
+# Deploy a second agent pool with the same number of machines, but using potentially different infrastructure.
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: "pool1"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: 2
+  template:
+    metadata: {}
+    spec:
+      bootstrap:
+        dataSecretName: ""
+      clusterName: "${CLUSTER_NAME}"
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: AzureManagedMachinePool
+        name: "pool1"
+      version: "${KUBERNETES_VERSION}"
+---
+# Deploy a third
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: "pool3"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: 4
+  template:
+    metadata: {}
+    spec:
+      bootstrap:
+        dataSecretName: ""
+      clusterName: "${CLUSTER_NAME}"
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: AzureManagedMachinePool
+        name: "pool3"
+      version: "${KUBERNETES_VERSION}"
+---
+# The infrastructure backing the second pool will use the same VM sku, but a larger OS disk.
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureManagedMachinePool
+metadata:
+  name: "pool1"
+spec:
+  mode: User
+  osDiskSizeGB: 40
+  sku: "${AZURE_NODE_MACHINE_TYPE}"
+  enableNodePublicIP: false
