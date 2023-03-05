@@ -1,0 +1,22 @@
+{
+  "kustomize_substitutions": {
+    "AZURE_SUBSCRIPTION_ID": "00000000-0000-0000-0000-000000000000",
+    "AZURE_TENANT_ID": "00000000-0000-0000-0000-000000000000",
+    "AZURE_CLIENT_SECRET": "<SECRET-GOES-HERE>",
+    "AZURE_CLIENT_ID": "00000000-0000-0000-0000-000000000000",
+    "AZURE_ENVIRONMENT": "AzurePublicCloud",
+    "AZURE_SSH_PUBLIC_KEY_B64": ""
+  },
+  "worker-templates": {
+    "flavors": {
+      "default": {
+        "WORKER_MACHINE_COUNT": "1",
+        "KUBERNETES_VERSION": "v1.23.6",
+        "AZURE_LOCATION": "westus2",
+        "AZURE_NODE_MACHINE_TYPE": "Standard_D2s_v3",
+        "CONTROL_PLANE_MACHINE_COUNT": "1"
+      }
+    },
+    "metadata": {}
+  }
+}
